@@ -2,19 +2,37 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
 struct catsetting{
     char* name; // Name of the setting
     void* value;// Value of the setting. On init this is a pointer to a char*, when the setting is loaded it becomes a pointer to whatever it actually is
     char type;  // Type of setting. s = string, d = int, f = float, etc
-    bool read;  // True if setting has been loaded by user, else false
+    bool loaded;  // True if setting has been loaded by user, else false
 };
 
 catsetting* _settings;
+int _settingscount = 0;
 
 //////// Internal stuff ////////
 
-bool _catload(char* name, char* var){
-    return name; // TODO : read the file and return variable
+// Load or create a setting.
+// var is used as the pointer to the new value and is expected to be of the correct type (set later in corresponding functions)
+// we can differentiate if a setting is new or not based on the value of `loaded`
+catsetting* _catload(char* name, void* var){
+    // Load setting if it exists
+    for (int i = 0; i < _settingscount; i++){
+        if (strcmp(_settings[i].name, name) == 0){
+            return &(_settings[i]);
+        }
+    }
+    // If it doesn't, create it
+    catsetting newsetting;
+    newsetting.name = name;
+    newsetting.loaded = true;
+    newsetting.value = var;
+    _settings = (catsetting*)realloc(_settings, sizeof(catsetting) * ++_settingscount);
+    _settings[_settingscount-1] = newsetting;
+    return &(_settings[_settingscount-1]);
 }
 
 bool _catreadline(FILE* f, char** line){
@@ -69,19 +87,37 @@ void catinit(char* filename){
             setting.value = malloc(valsize * sizeof(char) + 1);
             strcpy((char*)(setting.value), (line + paramsize + 1));
             setting.type = 's';
-            setting.read = false;
-            printf("SETTING %s - %s\n", setting.name, (char*)setting.value);
+            setting.loaded = false;
+            _settings = (catsetting*)realloc(_settings, sizeof(catsetting) * ++_settingscount);
+            _settings[_settingscount-1] = setting;
         }
         free(line);
     }
+    fclose(f);
 }
 
 bool catsave(char* filename){
     FILE* f = fopen(filename, "w");
+    if (f == NULL) return false;
+    for (int i = 0; i < _settingscount; i++){
+        switch (_settings[i].type){
+            case 's':
+                fprintf(f, "%s=%s\n", _settings[i].name, _settings[i].value); // Write strings and unloaded settings as, well, string.
+                break;
+            case 'd':
+                fprintf(f, "%s=%d\n", _settings[i].name, *(int*)(_settings[i].value)); // Write int 
+                break;
+            default:
+                fprintf(f, "%s=%s\n", _settings[i].name, _settings[i].value); // Note : this might be wrong, but invalid type shouldn't happen anyways.
+                break;
+        }
+    }
+    fclose(f);
+    return true;
 }
 
 /**
- * Frees all allocated memory.
+ * Frees memory allocated by catconfig.
  * Please call this before your code terminates!
  */
 void catexit(){
@@ -90,37 +126,21 @@ void catexit(){
 
 
 /**
- * TODO: Redo part of this
+ * Load or create an integer setting.
+ * @param name The name of the setting to load or create
+ * @param var Pointer to the variable that will be used.
  */
 bool catloadint(char* name, int* var){
-    *var = 0;
     char* s;
-    if (!_catload(name, s)) return false;
-    // Start of own atoi
-    int i = 0; // Current character index
-    char c = s[i]; // Current character
-    int n = 0; // Current character converted to a number
-    int sign = 1;
-    
-    while (c != '\0'){
-        //Handle sign
-        if (i == 0){
-            if (c == '-') {
-                sign = -1;
-                continue;
-            }
-            if (c == '+') continue;
-        }
-        
-        n = c - 0x30;
-        if (n < 0 || n > 9) break;
-        //printf("%d - %d - %d\n", *var);
-        *var = (*var * 10) + n;
-        
-        i++;
-        c = s[i];
+    catsetting* setting = _catload(name, var);
+    if (setting == NULL) return false;
+    setting->type = 'd';
+    if (setting->loaded){
+        return (setting->value == (void*) var);
     }
-    *var *= sign;
+    *var = atoi((char*)(setting->value));
+    free(setting->value);
+    setting->value = var;
     return true;
 }
 
@@ -132,5 +152,6 @@ bool catloadint(char* name, int* var){
  * Be aware that 
  */
 bool catloadstring(char* name, char* var){
-    return _catload(name, var);
+    //return _catload(name, var);
+    return true;
 }
