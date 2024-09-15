@@ -13,7 +13,7 @@ settingTwo=456
 but you're only loading `settingOne` in code, `settingTwo` will get saved anyways so you can reuse it later (you can choose to not save unloaded settings, but this isn't the default).
 
 Example of CatConfig code to load a config file, register an integer and a boolean, and save them to the file:
-```cpp
+```c
 catinit("test.catcfg"); // Initialization and reading config - if the file does not exist, make an empty config
 catloadint("myInt", &myInt); // Loads an integer, creates the setting if it doesn't exist
 catloadbool("myBool", &myBool); // Loads a boolean, creates the setting if it doesn't exist
@@ -25,7 +25,7 @@ catexit(); // Exit
 ```
 This code skips initializing variables and setting the default value, which only has to be done once before `catloadthing`.
 Example of corresponding libconfig code:
-```cpp
+```c
 config_init(&config); // Initialisation
 config_read_file(&config, "file.conf"); // Reading config file
 
