@@ -123,14 +123,16 @@ void catinit(char* filename){
 
 /**
  * @param filename Name or Path to the config file
+ * @param ignoreUnloaded Set this to true if only loaded settings should be saved, false if all settings should be saved. Default : false.
  * @return true if successful, false if saving failed (e.g. incorrect file permissions)
  * Save the config to the specified file.
  * Creates a file if it does not exist.
  */
-bool catsave(char* filename){
+bool catsave(char* filename, bool ignoreUnloaded = false){
     FILE* f = fopen(filename, "w");
     if (f == NULL) return false;
     for (int i = 0; i < _settingscount; i++){
+        if (ignoreUnloaded && !_settings[i].loaded) continue;
         switch (_settings[i].type){
             case 's':
                 fprintf(f, "%s=%s\n", _settings[i].name, _settings[i].value); // Write strings and unloaded settings as, well, string.
