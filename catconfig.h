@@ -23,6 +23,9 @@ S->type = T; \
 if (S->loaded) return (S->value == (void*) V); \
 S->loaded = true;
 
+/**
+ * Internal struct for a setting
+ */
 struct catsetting{
     char* name; // Name of the setting
     void* value;// Value of the setting. On init this is a pointer to a char*, when the setting is loaded it becomes a pointer to whatever it actually is
@@ -135,7 +138,7 @@ bool catsave(char* filename, bool ignoreUnloaded = false){
         if (ignoreUnloaded && !_settings[i].loaded) continue;
         switch (_settings[i].type){
             case 's':
-                fprintf(f, "%s=%s\n", _settings[i].name, _settings[i].value); // Write strings and unloaded settings as, well, string.
+                fprintf(f, "%s=%s\n", _settings[i].name, *(char**)(_settings[i].value)); // Write strings and unloaded settings as, well, string.
                 break;
             case 'd':
                 fprintf(f, "%s=%d\n", _settings[i].name, *(int*)(_settings[i].value)); // Write int 
@@ -153,11 +156,16 @@ bool catsave(char* filename, bool ignoreUnloaded = false){
 }
 
 /**
+ * @param freeAllStrings True if this function should call free() on all string type settings. Useful if you didn't reassign any string variable and didn't free them. Default : false
  * Frees memory allocated by catconfig.
  * Please call this before your code terminates!
  */
-void catexit(){
-
+void catexit(bool freeAllStrings = false){
+    for (int i = 0; i < _settingscount; i++){
+        //free(_settings[i].name); // Name can only be freed if the setting was not created, but if it was loaded. Unsure how to work on this rn, as this means slight memory leak
+        if (freeAllStrings && _settings[i].type == 's') free(_settings[i].value);
+    }
+    free(_settings);
 }
 
 
