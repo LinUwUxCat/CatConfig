@@ -27,6 +27,7 @@ catsetting* _catload(char* name, void* var){
     }
     // If it doesn't, create it
     catsetting newsetting;
+    if (strchr(name, '=') || strchr(name, '\r') || strchr(name, '\r')) return NULL; // Refuse to create a setting with '=', '\r' or '\n' in the name
     newsetting.name = name;
     newsetting.loaded = true;
     newsetting.value = var;
