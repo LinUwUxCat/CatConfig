@@ -3,6 +3,26 @@
 #include <stdio.h>
 #include <string.h>
 
+/** 
+ * @param S setting variable name
+ * @param N name 
+ * @param V var
+ * @param T Type as char
+ * Macro used internally to load a setting and set its type, because this becomes repetitive in functions.
+ * Explanation of how this works :
+ * - loads a setting using _catload
+ * - if it's null, then it's invalid. return false (the functions we call this from all return bool)
+ * - set the setting type
+ * - If loaded is true, that means it has either already been loaded, or was just created by _catload.
+ * - Return true if it's been created, false if it was already loaded and the provided variable isn't the same.
+ */
+#define CATLOADANDSETTYPE(S, N, V, T) \
+catsetting* S = _catload(N, V); \
+if (S == NULL) return false; \
+S->type = T; \
+if (S->loaded) return (S->value == (void*) V); \
+S->loaded = true;
+
 struct catsetting{
     char* name; // Name of the setting
     void* value;// Value of the setting. On init this is a pointer to a char*, when the setting is loaded it becomes a pointer to whatever it actually is
@@ -54,13 +74,17 @@ bool _catreadline(FILE* f, char** line){
 
 /**
  * @param filename name or path to the config file
- * reads the whole setting file and loads settings.
+ * Reads the whole setting file and loads settings.
+ * If the file does not exist or can't be read, empty settings will still be made.
  */
 void catinit(char* filename){
     FILE* f = fopen(filename, "r");
-    if (f == NULL) return;
-    char* line;
     _settings = (catsetting*)malloc(1);
+    if (f == NULL){ // If we cannot read the file, make empty settings still.
+        _settingscount = 0;
+        return;
+    }
+    char* line;
     bool reading = true;
     while (reading){
         reading = _catreadline(f, &line);
@@ -97,6 +121,12 @@ void catinit(char* filename){
     fclose(f);
 }
 
+/**
+ * @param filename Name or Path to the config file
+ * @return true if successful, false if saving failed (e.g. incorrect file permissions)
+ * Save the config to the specified file.
+ * Creates a file if it does not exist.
+ */
 bool catsave(char* filename){
     FILE* f = fopen(filename, "w");
     if (f == NULL) return false;
@@ -107,6 +137,9 @@ bool catsave(char* filename){
                 break;
             case 'd':
                 fprintf(f, "%s=%d\n", _settings[i].name, *(int*)(_settings[i].value)); // Write int 
+                break;
+            case 'b':
+                fprintf(f, "%s=%s\n", _settings[i].name, (*(bool*)(_settings[i].value))?"true":"false"); // Write bool as "true" or "false"
                 break;
             default:
                 fprintf(f, "%s=%s\n", _settings[i].name, _settings[i].value); // Note : this might be wrong, but invalid type shouldn't happen anyways.
@@ -130,15 +163,11 @@ void catexit(){
  * Load or create an integer setting.
  * @param name The name of the setting to load or create
  * @param var Pointer to the variable that will be used.
+ * @return true if loading or creation succeeded, false if it didn't.
+ * This can return false if the name is incorrect or if the setting was already loaded with another variable.
  */
 bool catloadint(char* name, int* var){
-    char* s;
-    catsetting* setting = _catload(name, var);
-    if (setting == NULL) return false;
-    setting->type = 'd';
-    if (setting->loaded){
-        return (setting->value == (void*) var);
-    }
+    CATLOADANDSETTYPE(setting, name, var, 'd');
     *var = atoi((char*)(setting->value));
     free(setting->value);
     setting->value = var;
@@ -146,13 +175,33 @@ bool catloadint(char* name, int* var){
 }
 
 /**
- * @param name the name of the setting to load
- * @param var the variable to load it to
- * @return true if the setting is 
- * Loads a setting to a string. 
- * Be aware that 
+ * Load or create an boolean setting.
+ * @param name The name of the setting to load or create
+ * @param var Pointer to the variable that will be used.
+ * @return true if loading or creation succeeded, false if it didn't. 
+ * This can return false if the name is incorrect or if the setting was already loaded.
  */
-bool catloadstring(char* name, char* var){
-    //return _catload(name, var);
+bool catloadbool(char* name, bool* var){
+    CATLOADANDSETTYPE(setting, name, var, 'b');
+    *var = (strcasecmp((char*)(setting->value), "false") != 0);
+    free(setting->value);
+    setting->value = var;
+    return true;
+}
+
+/**
+ * Load or create a string setting.
+ * @param name The name of the setting to load or create
+ * @param var Pointer to the variable that will be used.
+ * @return true if loading or creation succeeded, false if it didn't.
+ * This can return false if the name is incorrect or if the setting was already loaded.
+ * @warning The returned string is allocated using malloc and must be freed by the user after saving.
+ */
+bool catloadstring(char* name, char** var){
+    CATLOADANDSETTYPE(setting, name, var, 's');
+    *var = (char*) malloc((strlen((char*)(setting->value)) + 1) * sizeof(char));
+    strcpy(*var, (char*)(setting->value));
+    free(setting->value);
+    setting->value = var;
     return true;
 }
