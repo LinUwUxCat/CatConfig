@@ -17,6 +17,12 @@ int main(int argc, char** argv){
     catloadstring("strsetting", &teststr);
     printf("s : %s\n", teststr);
 
+    double d = 3.430592304239423429;
+    float f = 5.3204234f;
+    catloaddouble("dvar", &d);
+    catloadfloat("fvar", &f);
+    printf("d %.12f | f %f\n", d, f);
+
     catsave("test.catcfg");
     
     catexit();

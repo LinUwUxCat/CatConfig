@@ -29,7 +29,7 @@ S->loaded = true;
 struct catsetting{
     char* name; // Name of the setting
     void* value;// Value of the setting. On init this is a pointer to a char*, when the setting is loaded it becomes a pointer to whatever it actually is
-    char type;  // Type of setting. s = string, d = int, f = float, etc
+    char type;  // Type of setting. s = string, i = int, f = float, etc
     bool loaded;  // True if setting has been loaded by user, else false
 };
 
@@ -124,6 +124,8 @@ void catinit(char* filename){
     fclose(f);
 }
 
+//Macro for below function
+#define DOPRINT(S, V) fprintf(f, S, _settings[i].name, V);
 /**
  * @param filename Name or Path to the config file
  * @param ignoreUnloaded Set this to true if only loaded settings should be saved, false if all settings should be saved. Default : false.
@@ -138,16 +140,22 @@ bool catsave(char* filename, bool ignoreUnloaded = false){
         if (ignoreUnloaded && !_settings[i].loaded) continue;
         switch (_settings[i].type){
             case 's':
-                fprintf(f, "%s=%s\n", _settings[i].name, *(char**)(_settings[i].value)); // Write strings and unloaded settings as, well, string.
+                DOPRINT("%s=%s\n", *(char**)(_settings[i].value)); // Write strings and unloaded settings as, well, string.
                 break;
-            case 'd':
-                fprintf(f, "%s=%d\n", _settings[i].name, *(int*)(_settings[i].value)); // Write int 
+            case 'i':
+                DOPRINT("%s=%d\n", *(int*)(_settings[i].value)); // Write int 
                 break;
             case 'b':
-                fprintf(f, "%s=%s\n", _settings[i].name, (*(bool*)(_settings[i].value))?"true":"false"); // Write bool as "true" or "false"
+                DOPRINT("%s=%s\n", (*(bool*)(_settings[i].value))?"true":"false"); // Write bool as "true" or "false"
+                break;
+            case 'f':
+                DOPRINT("%s=%f\n", (*(float*)(_settings[i].value))); // Write float
+                break;
+            case 'd':
+                DOPRINT("%s=%.12f\n", (*(double*)(_settings[i].value))); // Write double
                 break;
             default:
-                fprintf(f, "%s=%s\n", _settings[i].name, _settings[i].value); // Note : this might be wrong, but invalid type shouldn't happen anyways.
+                DOPRINT("%s=%s\n", _settings[i].value); // Note : this might be wrong, but invalid type shouldn't happen anyways.
                 break;
         }
     }
@@ -177,7 +185,7 @@ void catexit(bool freeAllStrings = false){
  * This can return false if the name is incorrect or if the setting was already loaded with another variable.
  */
 bool catloadint(char* name, int* var){
-    CATLOADANDSETTYPE(setting, name, var, 'd');
+    CATLOADANDSETTYPE(setting, name, var, 'i');
     *var = atoi((char*)(setting->value));
     free(setting->value);
     setting->value = var;
@@ -185,7 +193,37 @@ bool catloadint(char* name, int* var){
 }
 
 /**
- * Load or create an boolean setting.
+ * Load or create a double setting.
+ * @param name The name of the setting to load or create
+ * @param var Pointer to the variable that will be used.
+ * @return true if loading or creation succeeded, false if it didn't.
+ * This can return false if the name is incorrect or if the setting was already loaded with another variable.
+ */
+bool catloaddouble(char* name, double* var){
+    CATLOADANDSETTYPE(setting, name, var, 'd');
+    *var = atof((char*)(setting->value));
+    free(setting->value);
+    setting->value = var;
+    return true;
+}
+
+/**
+ * Load or create a float setting.
+ * @param name The name of the setting to load or create
+ * @param var Pointer to the variable that will be used.
+ * @return true if loading or creation succeeded, false if it didn't.
+ * This can return false if the name is incorrect or if the setting was already loaded with another variable.
+ */
+bool catloadfloat(char* name, float* var){
+    CATLOADANDSETTYPE(setting, name, var, 'f');
+    *var = (float)(atof((char*)(setting->value)));
+    free(setting->value);
+    setting->value = var;
+    return true;
+}
+
+/**
+ * Load or create a boolean setting.
  * @param name The name of the setting to load or create
  * @param var Pointer to the variable that will be used.
  * @return true if loading or creation succeeded, false if it didn't. 
