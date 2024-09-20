@@ -192,6 +192,15 @@ bool catloadint(char* name, int* var){
     return true;
 }
 
+template <typename t>
+bool catloadint_2(char* name, t* var){
+    CATLOADANDSETTYPE(setting, name, var, 'i');
+    *var = (t)atoll((char*)(setting->value));
+    free(setting->value);
+    setting->value = var;
+    return true;
+}
+
 /**
  * Load or create a double setting.
  * @param name The name of the setting to load or create
