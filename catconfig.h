@@ -31,6 +31,7 @@ struct catsetting{
     void* value;// Value of the setting. On init this is a pointer to a char*, when the setting is loaded it becomes a pointer to whatever it actually is
     char type;  // Type of setting. s = string, i = int, f = float, etc
     bool loaded;  // True if setting has been loaded by user, else false
+    int size; // size of type. used for int
 };
 
 catsetting* _settings;
@@ -54,6 +55,7 @@ catsetting* _catload(char* name, void* var){
     newsetting.name = name;
     newsetting.loaded = true;
     newsetting.value = var;
+    newsetting.size = 0;
     _settings = (catsetting*)realloc(_settings, sizeof(catsetting) * ++_settingscount);
     _settings[_settingscount-1] = newsetting;
     return &(_settings[_settingscount-1]);
@@ -116,6 +118,7 @@ void catinit(char* filename){
             strcpy((char*)(setting.value), (line + paramsize + 1));
             setting.type = 's';
             setting.loaded = false;
+            setting.size = 0;
             _settings = (catsetting*)realloc(_settings, sizeof(catsetting) * ++_settingscount);
             _settings[_settingscount-1] = setting;
         }
@@ -142,9 +145,15 @@ bool catsave(char* filename, bool ignoreUnloaded = false){
             case 's':
                 DOPRINT("%s=%s\n", *(char**)(_settings[i].value)); // Write strings and unloaded settings as, well, string.
                 break;
-            case 'i':
-                DOPRINT("%s=%d\n", *(int*)(_settings[i].value)); // Write int 
+            case 'i': {
+                long long temp = 0;
+                for (int b; b < _settings[i].size; b++){
+                    temp |= ((int)(*((unsigned char*)_settings[i].value + i)) << 8*i);
+                }
+                DOPRINT("%s=%lld\n", temp); // Write int 
+                printf("%s=%lld\n", temp);
                 break;
+            }
             case 'b':
                 DOPRINT("%s=%s\n", (*(bool*)(_settings[i].value))?"true":"false"); // Write bool as "true" or "false"
                 break;
@@ -184,17 +193,10 @@ void catexit(bool freeAllStrings = false){
  * @return true if loading or creation succeeded, false if it didn't.
  * This can return false if the name is incorrect or if the setting was already loaded with another variable.
  */
-bool catloadint(char* name, int* var){
-    CATLOADANDSETTYPE(setting, name, var, 'i');
-    *var = atoi((char*)(setting->value));
-    free(setting->value);
-    setting->value = var;
-    return true;
-}
-
 template <typename t>
-bool catloadint_2(char* name, t* var){
+bool catloadint(char* name, t* var){
     CATLOADANDSETTYPE(setting, name, var, 'i');
+    setting->size = sizeof(t);
     *var = (t)atoll((char*)(setting->value));
     free(setting->value);
     setting->value = var;
